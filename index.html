@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Законы Трения — Физическая Лаборатория</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.19.0/matter.min.js"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+      min-height: 100vh;
+      color: #fff;
+    }
+
+    header {
+      text-align: center;
+      padding: 20px;
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+
+    header h1 {
+      font-size: 2rem;
+      background: linear-gradient(90deg, #f9ca24, #f0932b, #eb4d4b);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 6px;
+    }
+
+    header p {
+      font-size: 1rem;
+      opacity: 0.7;
+    }
+
+    .container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+      gap: 20px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .main-area {
+      display: flex;
+      gap: 20px;
+      width: 100%;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* === CANVAS === */
+    .canvas-wrap {
+      position: relative;
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+      border: 2px solid rgba(255,255,255,0.1);
+      flex-shrink: 0;
+    }
+
+    #physics-canvas {
+      display: block;
+      background: #0d1b2a;
+    }
+
+    /* === CONTROLS === */
+    .controls {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 16px;
+      padding: 20px;
+      min-width: 240px;
+      max-width: 280px;
+      flex: 1;
+    }
+
+    .controls h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: #f9ca24;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .ctrl-section {
+      margin-bottom: 20px;
+    }
+
+    .ctrl-section label {
+      display: block;
+      font-size: 0.85rem;
+      opacity: 0.8;
+      margin-bottom: 8px;
+    }
+
+    .surface-btns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .surface-btn {
+      padding: 10px 6px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.05);
+      color: #fff;
+      font-size: 0.8rem;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .surface-btn:hover {
+      background: rgba(255,255,255,0.1);
+      transform: translateY(-2px);
+    }
+
+    .surface-btn.active {
+      border-color: #f9ca24;
+      background: rgba(249,202,36,0.15);
+      box-shadow: 0 0 12px rgba(249,202,36,0.3);
+    }
+
+    .surface-btn .emoji { font-size: 1.4rem; display: block; margin-bottom: 4px; }
+
+    .range-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    input[type=range] {
+      flex: 1;
+      -webkit-appearance: none;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255,255,255,0.2);
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #f9ca24;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(249,202,36,0.5);
+    }
+
+    .range-val {
+      min-width: 40px;
+      text-align: right;
+      font-weight: bold;
+      color: #f9ca24;
+      font-size: 0.9rem;
+    }
+
+    .weight-btns {
+      display: flex;
+      gap: 8px;
+    }
+
+    .weight-btn {
+      flex: 1;
+      padding: 10px;
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 10px;
+      cursor: pointer;
+      background: rgba(255,255,255,0.05);
+      color: #fff;
+      font-size: 0.85rem;
+      text-align: center;
+      transition: all 0.2s;
+    }
+
+    .weight-btn:hover { background: rgba(255,255,255,0.1); }
+    .weight-btn.active {
+      border-color: #6c5ce7;
+      background: rgba(108,92,231,0.2);
+      box-shadow: 0 0 12px rgba(108,92,231,0.3);
+    }
+
+    .action-btn {
+      width: 100%;
+      padding: 12px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      font-size: 1rem;
+      font-weight: bold;
+      transition: all 0.2s;
+      margin-bottom: 8px;
+    }
+
+    .btn-launch {
+      background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+      color: white;
+    }
+
+    .btn-reset {
+      background: linear-gradient(135deg, #2d3436, #636e72);
+      color: white;
+    }
+
+    .action-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
+    .action-btn:active { transform: translateY(0); }
+
+    /* === INFO PANEL === */
+    .info-panel {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.15);
+      border-radius: 16px;
+      padding: 20px;
+      width: 100%;
+      max-width: 840px;
+    }
+
+    .info-panel h2 {
+      font-size: 1.1rem;
+      margin-bottom: 16px;
+      color: #a29bfe;
+    }
+
+    .forces-display {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .force-card {
+      flex: 1;
+      min-width: 140px;
+      background: rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+
+    .force-card .force-label {
+      font-size: 0.75rem;
+      opacity: 0.7;
+      margin-bottom: 6px;
+    }
+
+    .force-card .force-value {
+      font-size: 1.6rem;
+      font-weight: bold;
+    }
+
+    .force-card.normal .force-value { color: #00b894; }
+    .force-card.friction .force-value { color: #e17055; }
+    .force-card.coeff .force-value { color: #74b9ff; }
+    .force-card.velocity .force-value { color: #fdcb6e; }
+
+    /* Force bar */
+    .force-bar-wrap { margin-top: 8px; }
+    .force-bar-label { font-size: 0.75rem; opacity: 0.6; margin-bottom: 4px; }
+    .force-bar-track {
+      height: 8px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.1);
+      margin-bottom: 6px;
+      overflow: hidden;
+    }
+    .force-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.1s;
+    }
+    .bar-normal { background: linear-gradient(90deg, #00b894, #55efc4); }
+    .bar-friction { background: linear-gradient(90deg, #e17055, #fab1a0); }
+
+    /* === INFO CARDS === */
+    .fact-cards {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .fact-card {
+      flex: 1;
+      min-width: 160px;
+      background: rgba(255,255,255,0.04);
+      border-radius: 12px;
+      padding: 14px;
+      border-left: 3px solid;
+    }
+
+    .fact-card.ice { border-color: #74b9ff; }
+    .fact-card.wood { border-color: #fdcb6e; }
+    .fact-card.rubber { border-color: #e17055; }
+    .fact-card.sand { border-color: #fd79a8; }
+
+    .fact-card h3 { font-size: 0.85rem; margin-bottom: 6px; opacity: 0.9; }
+    .fact-card p { font-size: 0.78rem; opacity: 0.65; line-height: 1.5; }
+
+    /* Annotation overlay */
+    #annotation {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(0,0,0,0.75);
+      border: 2px solid rgba(255,255,255,0.2);
+      border-radius: 14px;
+      padding: 18px 24px;
+      text-align: center;
+      pointer-events: none;
+      transition: opacity 0.4s;
+      max-width: 260px;
+    }
+
+    #annotation.hidden { opacity: 0; }
+    #annotation h3 { font-size: 1rem; color: #f9ca24; margin-bottom: 6px; }
+    #annotation p { font-size: 0.8rem; opacity: 0.8; line-height: 1.5; }
+
+    /* Surface texture label */
+    #surface-label {
+      position: absolute;
+      bottom: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.6);
+      border-radius: 20px;
+      padding: 4px 16px;
+      font-size: 0.8rem;
+      opacity: 0.8;
+      pointer-events: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 680px) {
+      header h1 { font-size: 1.4rem; }
+      .main-area { flex-direction: column; align-items: center; }
+      .controls { max-width: 100%; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>⚡ Законы Трения</h1>
+  <p>Физическая лаборатория для 3 класса — изменяй поверхность, угол и вес!</p>
+</header>
+
+<div class="container">
+  <div class="main-area">
+
+    <!-- SIMULATION CANVAS -->
+    <div class="canvas-wrap">
+      <canvas id="physics-canvas" width="580" height="420"></canvas>
+      <div id="annotation">
+        <h3>Попробуй сам!</h3>
+        <p>Нажми <strong>«Запустить»</strong>, чтобы начать эксперимент. Меняй поверхность и угол наклона!</p>
+      </div>
+      <div id="surface-label">Поверхность: Дерево</div>
+    </div>
+
+    <!-- CONTROLS -->
+    <div class="controls">
+      <h2>🎛️ Управление</h2>
+
+      <div class="ctrl-section">
+        <label>🌐 Выбери поверхность:</label>
+        <div class="surface-btns">
+          <div class="surface-btn" data-surface="ice" onclick="setSurface('ice')">
+            <span class="emoji">🧊</span>Лёд<br><small style="opacity:0.6">μ = 0.05</small>
+          </div>
+          <div class="surface-btn active" data-surface="wood" onclick="setSurface('wood')">
+            <span class="emoji">🪵</span>Дерево<br><small style="opacity:0.6">μ = 0.35</small>
+          </div>
+          <div class="surface-btn" data-surface="rubber" onclick="setSurface('rubber')">
+            <span class="emoji">⚫</span>Резина<br><small style="opacity:0.6">μ = 0.70</small>
+          </div>
+          <div class="surface-btn" data-surface="sand" onclick="setSurface('sand')">
+            <span class="emoji">🏜️</span>Песок<br><small style="opacity:0.6">μ = 0.90</small>
+          </div>
+        </div>
+      </div>
+
+      <div class="ctrl-section">
+        <label>📐 Угол наклона: <span id="angle-display">25°</span></label>
+        <div class="range-wrap">
+          <input type="range" id="angle-range" min="5" max="55" value="25" oninput="setAngle(this.value)">
+          <span class="range-val" id="angle-val">25°</span>
+        </div>
+      </div>
+
+      <div class="ctrl-section">
+        <label>⚖️ Масса объекта:</label>
+        <div class="weight-btns">
+          <div class="weight-btn" data-w="light" onclick="setWeight('light')">🪶<br><small>Лёгкий</small></div>
+          <div class="weight-btn active" data-w="medium" onclick="setWeight('medium')">📦<br><small>Средний</small></div>
+          <div class="weight-btn" data-w="heavy" onclick="setWeight('heavy')">🪨<br><small>Тяжёлый</small></div>
+        </div>
+      </div>
+
+      <button class="action-btn btn-launch" onclick="launchSimulation()">▶ Запустить</button>
+      <button class="action-btn btn-reset" onclick="resetSimulation()">↺ Сбросить</button>
+    </div>
+  </div>
+
+  <!-- INFO PANEL -->
+  <div class="info-panel">
+    <h2>📊 Силы в реальном времени</h2>
+    <div class="forces-display">
+      <div class="force-card normal">
+        <div class="force-label">Нормальная сила (N)</div>
+        <div class="force-value" id="f-normal">0.0</div>
+        <div style="font-size:0.7rem;opacity:0.5;margin-top:4px">Н (ньютоны)</div>
+      </div>
+      <div class="force-card friction">
+        <div class="force-label">Сила трения (F)</div>
+        <div class="force-value" id="f-friction">0.0</div>
+        <div style="font-size:0.7rem;opacity:0.5;margin-top:4px">Н (ньютоны)</div>
+      </div>
+      <div class="force-card coeff">
+        <div class="force-label">Коэффициент трения (μ)</div>
+        <div class="force-value" id="f-coeff">0.35</div>
+        <div style="font-size:0.7rem;opacity:0.5;margin-top:4px">безразмерный</div>
+      </div>
+      <div class="force-card velocity">
+        <div class="force-label">Скорость объекта</div>
+        <div class="force-value" id="f-velocity">0.0</div>
+        <div style="font-size:0.7rem;opacity:0.5;margin-top:4px">м/с</div>
+      </div>
+    </div>
+
+    <div class="force-bar-wrap">
+      <div class="force-bar-label">Нормальная сила</div>
+      <div class="force-bar-track"><div class="force-bar-fill bar-normal" id="bar-normal" style="width:0%"></div></div>
+      <div class="force-bar-label">Сила трения</div>
+      <div class="force-bar-track"><div class="force-bar-fill bar-friction" id="bar-friction" style="width:0%"></div></div>
+    </div>
+  </div>
+
+  <!-- FACT CARDS -->
+  <div class="info-panel">
+    <h2>📚 Интересные факты о трении</h2>
+    <div class="fact-cards">
+      <div class="fact-card ice">
+        <h3>🧊 Лёд (μ ≈ 0.05)</h3>
+        <p>Очень скользко! Именно поэтому лёд посыпают песком зимой. Конькобежцы скользят на льду благодаря тонкой плёнке воды.</p>
+      </div>
+      <div class="fact-card wood">
+        <h3>🪵 Дерево (μ ≈ 0.35)</h3>
+        <p>Обычное трение. Деревянные полы и мебель — здесь трение помогает нам удерживать предметы на месте.</p>
+      </div>
+      <div class="fact-card rubber">
+        <h3>⚫ Резина (μ ≈ 0.70)</h3>
+        <p>Высокое трение! Шины автомобилей сделаны из резины именно поэтому — они не должны скользить на дороге.</p>
+      </div>
+      <div class="fact-card sand">
+        <h3>🏜️ Песок (μ ≈ 0.90)</h3>
+        <p>Очень высокое трение. Песок тормозит почти всё! Поэтому машины буксуют в песке — слишком много трения.</p>
+      </div>
+    </div>
+
+    <div style="margin-top: 16px; padding: 14px; background: rgba(249,202,36,0.08); border-radius: 12px; border-left: 3px solid #f9ca24;">
+      <strong style="color:#f9ca24;">Закон трения:</strong>
+      <span style="font-size:0.85rem;opacity:0.85;"> F = μ × N, где F — сила трения, μ — коэффициент трения, N — нормальная сила (сила давления на поверхность).</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const { Engine, Render, Runner, Bodies, Body, World, Events, Vector } = Matter;
+
+// -------- State --------
+const surfaces = {
+  ice:    { friction: 0.01, frictionStatic: 0.05, color: '#74b9ff', name: 'Лёд',    mu: 0.05 },
+  wood:   { friction: 0.35, frictionStatic: 0.40, color: '#b8860b', name: 'Дерево', mu: 0.35 },
+  rubber: { friction: 0.70, frictionStatic: 0.80, color: '#2d3436', name: 'Резина', mu: 0.70 },
+  sand:   { friction: 0.90, frictionStatic: 1.00, color: '#e2b96a', name: 'Песок',  mu: 0.90 }
+};
+
+const weights = {
+  light:  { mass: 0.5, size: 30, label: '🪶' },
+  medium: { mass: 2.0, size: 45, label: '📦' },
+  heavy:  { mass: 5.0, size: 60, label: '🪨' }
+};
+
+let currentSurface = 'wood';
+let currentWeight  = 'medium';
+let currentAngle   = 25;
+let engine, render, runner, rampBody, boxBody;
+let running = false;
+let animFrame;
+
+const canvasW = 580, canvasH = 420;
+const SCALE = 100; // pixels per "meter"
+
+// -------- Setup Matter.js --------
+function initPhysics() {
+  if (engine) {
+    Runner.stop(runner);
+    cancelAnimationFrame(animFrame);
+    Engine.clear(engine);
+    render.canvas.getContext('2d').clearRect(0, 0, canvasW, canvasH);
+  }
+
+  engine = Engine.create({ gravity: { x: 0, y: 1 } });
+  running = false;
+  drawStatic();
+  updateForceDisplay(0, 0);
+}
+
+// -------- Draw everything manually on canvas --------
+const cvs = document.getElementById('physics-canvas');
+const ctx = cvs.getContext('2d');
+
+function toRad(deg) { return deg * Math.PI / 180; }
+
+function getRampPoints(angleDeg) {
+  const angle = toRad(angleDeg);
+  const len = 400;
+  const cx = canvasW / 2;
+  const cy = canvasH * 0.75;
+  const dx = Math.cos(angle) * len / 2;
+  const dy = Math.sin(angle) * len / 2;
+  return {
+    x1: cx - dx, y1: cy + dy,
+    x2: cx + dx, y2: cy - dy,
+    angle, len, cx, cy
+  };
+}
+
+let boxPos = { x: 0, y: 0 };
+let boxVel = { x: 0, y: 0 };
+let boxW = 45, boxH = 45;
+let simAngle = 0, simMu = 0.35, simMass = 2.0;
+let simRunning = false;
+let simTime = 0;
+
+function drawBackground() {
+  // Sky gradient
+  const grad = ctx.createLinearGradient(0, 0, 0, canvasH);
+  grad.addColorStop(0, '#0d1b2a');
+  grad.addColorStop(1, '#1a2a3a');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, canvasW, canvasH);
+
+  // Grid lines
+  ctx.strokeStyle = 'rgba(255,255,255,0.04)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x < canvasW; x += 40) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvasH); ctx.stroke();
+  }
+  for (let y = 0; y < canvasH; y += 40) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvasW, y); ctx.stroke();
+  }
+}
+
+function drawRamp(angleDeg) {
+  const r = getRampPoints(angleDeg);
+  const surf = surfaces[currentSurface];
+  const thickness = 14;
+
+  // Shadow
+  ctx.save();
+  ctx.shadowColor = 'rgba(0,0,0,0.6)';
+  ctx.shadowBlur = 20;
+  ctx.shadowOffsetY = 6;
+
+  // Ramp body
+  const perpDx = Math.sin(r.angle) * thickness / 2;
+  const perpDy = -Math.cos(r.angle) * thickness / 2;
+  ctx.beginPath();
+  ctx.moveTo(r.x1 + perpDx, r.y1 + perpDy);
+  ctx.lineTo(r.x2 + perpDx, r.y2 + perpDy);
+  ctx.lineTo(r.x2 - perpDx, r.y2 - perpDy);
+  ctx.lineTo(r.x1 - perpDx, r.y1 - perpDy);
+  ctx.closePath();
+
+  // Surface texture fill
+  if (currentSurface === 'ice') {
+    const g = ctx.createLinearGradient(r.x1, r.y1, r.x2, r.y2);
+    g.addColorStop(0, '#a8e6ff');
+    g.addColorStop(0.5, '#74b9ff');
+    g.addColorStop(1, '#a8e6ff');
+    ctx.fillStyle = g;
+  } else if (currentSurface === 'wood') {
+    ctx.fillStyle = '#8B6914';
+  } else if (currentSurface === 'rubber') {
+    ctx.fillStyle = '#2d2d2d';
+  } else {
+    const g = ctx.createLinearGradient(r.x1, r.y1, r.x2, r.y2);
+    g.addColorStop(0, '#e2b96a');
+    g.addColorStop(1, '#c8973e');
+    ctx.fillStyle = g;
+  }
+  ctx.fill();
+  ctx.strokeStyle = surf.color;
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.restore();
+
+  // Texture details
+  if (currentSurface === 'wood') {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,200,100,0.3)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 8; i++) {
+      const t = (i + 1) / 9;
+      const lx = r.x1 + (r.x2 - r.x1) * t;
+      const ly = r.y1 + (r.y2 - r.y1) * t;
+      ctx.beginPath();
+      ctx.moveTo(lx + perpDx * 0.8, ly + perpDy * 0.8);
+      ctx.lineTo(lx - perpDx * 0.8, ly - perpDy * 0.8);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  if (currentSurface === 'sand') {
+    ctx.save();
+    ctx.fillStyle = 'rgba(255,255,200,0.3)';
+    for (let i = 0; i < 25; i++) {
+      const t = Math.random();
+      const lx = r.x1 + (r.x2 - r.x1) * t + (Math.random() - 0.5) * thickness;
+      const ly = r.y1 + (r.y2 - r.y1) * t + (Math.random() - 0.5) * thickness;
+      ctx.beginPath();
+      ctx.arc(lx, ly, 1.5, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  // Draw angle arc
+  ctx.save();
+  const arcR = 50;
+  ctx.beginPath();
+  ctx.arc(r.x1, r.y1, arcR, -r.angle - 0.1, 0.1);
+  ctx.strokeStyle = 'rgba(249,202,36,0.6)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  // Angle label
+  ctx.fillStyle = '#f9ca24';
+  ctx.font = 'bold 14px Arial';
+  ctx.fillText(angleDeg + '°', r.x1 + arcR * 0.5, r.y1 - 10);
+  ctx.restore();
+}
+
+function drawBox(px, py, angle, wSize) {
+  const surf = surfaces[currentSurface];
+  const hw = wSize / 2;
+
+  ctx.save();
+  ctx.translate(px, py);
+  ctx.rotate(-angle);
+
+  // Shadow
+  ctx.shadowColor = 'rgba(0,0,0,0.5)';
+  ctx.shadowBlur = 15;
+  ctx.shadowOffsetY = 4;
+
+  // Box body
+  const g = ctx.createLinearGradient(-hw, -hw, hw, hw);
+  if (currentWeight === 'light') {
+    g.addColorStop(0, '#fd79a8');
+    g.addColorStop(1, '#e84393');
+  } else if (currentWeight === 'medium') {
+    g.addColorStop(0, '#a29bfe');
+    g.addColorStop(1, '#6c5ce7');
+  } else {
+    g.addColorStop(0, '#636e72');
+    g.addColorStop(1, '#2d3436');
+  }
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.roundRect(-hw, -hw, wSize, wSize, 6);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Icon
+  ctx.shadowBlur = 0;
+  ctx.font = `${Math.round(wSize * 0.55)}px Arial`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(weights[currentWeight].label, 0, 0);
+
+  ctx.restore();
+}
+
+function drawForceArrows(px, py, angle, normalMag, frictionMag) {
+  if (!simRunning) return;
+  const scale = 0.6;
+
+  // Normal force (perpendicular to ramp = up from surface)
+  const nx = -Math.sin(angle) * normalMag * scale;
+  const ny =  Math.cos(angle) * normalMag * scale;
+  drawArrow(px, py, px + nx, py - ny, '#00b894', 'N');
+
+  // Friction (along ramp, opposing motion)
+  const fx =  Math.cos(angle) * frictionMag * scale;
+  const fy =  Math.sin(angle) * frictionMag * scale;
+  drawArrow(px, py, px + fx, py + fy, '#e17055', 'F тр');
+
+  // Gravity component along ramp
+  const gComp = simMass * 9.8 * Math.sin(angle) * scale;
+  drawArrow(px, py, px - Math.cos(angle) * gComp, py - Math.sin(angle) * gComp, '#fdcb6e', 'G║');
+}
+
+function drawArrow(x1, y1, x2, y2, color, label) {
+  const dx = x2 - x1, dy = y2 - y1;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 5) return;
+  const ux = dx / len, uy = dy / len;
+  const arrowLen = 10, arrowW = 5;
+
+  ctx.save();
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 2.5;
+  ctx.shadowColor = color;
+  ctx.shadowBlur = 8;
+
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+
+  // Arrowhead
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - ux * arrowLen + uy * arrowW, y2 - uy * arrowLen - ux * arrowW);
+  ctx.lineTo(x2 - ux * arrowLen - uy * arrowW, y2 - uy * arrowLen + ux * arrowW);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.shadowBlur = 0;
+  ctx.font = 'bold 11px Arial';
+  ctx.fillStyle = color;
+  ctx.fillText(label, x2 + 6, y2 - 6);
+  ctx.restore();
+}
+
+function getBoxStartPos() {
+  const r = getRampPoints(currentAngle);
+  const t = 0.72;
+  return {
+    x: r.x1 + (r.x2 - r.x1) * t,
+    y: r.y1 + (r.y2 - r.y1) * t
+  };
+}
+
+function drawStatic() {
+  ctx.clearRect(0, 0, canvasW, canvasH);
+  drawBackground();
+  drawRamp(currentAngle);
+  const pos = getBoxStartPos();
+  const ws = weights[currentWeight].size;
+  const hw = ws / 2;
+  // Offset slightly above ramp surface
+  const angle = toRad(currentAngle);
+  const offX = -Math.sin(angle) * (hw + 7);
+  const offY =  Math.cos(angle) * (hw + 7);
+  drawBox(pos.x + offX, pos.y - offY, angle, ws);
+}
+
+// -------- Simulation loop --------
+let lastTs = null;
+
+function updateForceDisplay(normalF, frictionF) {
+  const mu = surfaces[currentSurface].mu;
+  const vel = Math.sqrt(boxVel.x * boxVel.x + boxVel.y * boxVel.y);
+  document.getElementById('f-normal').textContent   = normalF.toFixed(1);
+  document.getElementById('f-friction').textContent = frictionF.toFixed(1);
+  document.getElementById('f-coeff').textContent    = mu.toFixed(2);
+  document.getElementById('f-velocity').textContent = (vel / SCALE * 10).toFixed(2);
+  // Bars
+  const maxF = simMass * 9.8 * 1.1;
+  document.getElementById('bar-normal').style.width   = Math.min(100, normalF / maxF * 100) + '%';
+  document.getElementById('bar-friction').style.width = Math.min(100, frictionF / maxF * 100) + '%';
+}
+
+function simLoop(ts) {
+  if (!simRunning) return;
+
+  const dt = Math.min((ts - (lastTs || ts)) / 1000, 0.033);
+  lastTs = ts;
+  simTime += dt;
+
+  const angle = toRad(currentAngle);
+  const mu = surfaces[currentSurface].mu;
+  const surf = surfaces[currentSurface];
+  const g = 9.8 * SCALE;
+  const mass = simMass;
+
+  // Forces
+  const gravDown = mass * g;
+  const normalF  = mass * g * Math.cos(angle);
+  const gravAlongRamp = mass * g * Math.sin(angle);
+
+  // Speed along ramp
+  const vAlong = boxVel.x * Math.cos(angle) + boxVel.y * Math.sin(angle);
+
+  // Static or kinetic
+  let frictionF = 0;
+  const maxStaticF = surf.frictionStatic * normalF;
+  if (Math.abs(vAlong) < 0.5) {
+    // Static — resist motion
+    if (gravAlongRamp > maxStaticF) {
+      frictionF = mu * normalF;
+    } else {
+      frictionF = gravAlongRamp; // fully stopped
+    }
+  } else {
+    frictionF = mu * normalF;
+  }
+
+  // Net force along ramp (positive = down the ramp)
+  const netAlong = gravAlongRamp - frictionF;
+
+  // Acceleration
+  const ax = netAlong * Math.cos(angle) / mass;
+  const ay = netAlong * Math.sin(angle) / mass;
+
+  boxVel.x += ax * dt;
+  boxVel.y += ay * dt;
+
+  // Damp if nearly stopped and static holds
+  if (gravAlongRamp <= maxStaticF && Math.abs(vAlong) < 2) {
+    boxVel.x *= 0.85;
+    boxVel.y *= 0.85;
+  }
+
+  boxPos.x += boxVel.x * dt;
+  boxPos.y += boxVel.y * dt;
+
+  // Stop if off ramp
+  const r = getRampPoints(currentAngle);
+  if (boxPos.x > canvasW + 60 || boxPos.y > canvasH + 60 || boxPos.x < -60) {
+    simRunning = false;
+    updateForceDisplay(normalF / SCALE, frictionF / SCALE);
+    return;
+  }
+
+  // Redraw
+  ctx.clearRect(0, 0, canvasW, canvasH);
+  drawBackground();
+  drawRamp(currentAngle);
+
+  const ws = weights[currentWeight].size;
+  const hw = ws / 2;
+  const offX = -Math.sin(angle) * (hw + 6);
+  const offY =  Math.cos(angle) * (hw + 6);
+
+  drawForceArrows(boxPos.x + offX, boxPos.y - offY, angle,
+    normalF / SCALE * 30,
+    frictionF / SCALE * 30);
+  drawBox(boxPos.x + offX, boxPos.y - offY, angle, ws);
+
+  updateForceDisplay(normalF / SCALE, frictionF / SCALE);
+
+  animFrame = requestAnimationFrame(simLoop);
+}
+
+// -------- Controls --------
+function setSurface(s) {
+  currentSurface = s;
+  document.querySelectorAll('.surface-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-surface="${s}"]`).classList.add('active');
+  document.getElementById('surface-label').textContent = 'Поверхность: ' + surfaces[s].name;
+  document.getElementById('f-coeff').textContent = surfaces[s].mu.toFixed(2);
+  resetSimulation();
+}
+
+function setAngle(val) {
+  currentAngle = parseInt(val);
+  document.getElementById('angle-val').textContent = val + '°';
+  document.getElementById('angle-display').textContent = val + '°';
+  resetSimulation();
+}
+
+function setWeight(w) {
+  currentWeight = w;
+  document.querySelectorAll('.weight-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`[data-w="${w}"]`).classList.add('active');
+  simMass = weights[w].mass;
+  resetSimulation();
+}
+
+function launchSimulation() {
+  simRunning = false;
+  cancelAnimationFrame(animFrame);
+
+  const r = getRampPoints(currentAngle);
+  const t = 0.75;
+  const angle = toRad(currentAngle);
+  const ws = weights[currentWeight].size;
+  const hw = ws / 2;
+  const offX = -Math.sin(angle) * (hw + 6);
+  const offY =  Math.cos(angle) * (hw + 6);
+
+  boxPos = {
+    x: r.x1 + (r.x2 - r.x1) * t + offX,
+    y: r.y1 + (r.y2 - r.y1) * t - offY
+  };
+  // Correct boxPos to be along ramp
+  boxPos = {
+    x: r.x1 + (r.x2 - r.x1) * t,
+    y: r.y1 + (r.y2 - r.y1) * t
+  };
+
+  boxVel = { x: 0, y: 0 };
+  simAngle = toRad(currentAngle);
+  simMu    = surfaces[currentSurface].mu;
+  simMass  = weights[currentWeight].mass;
+  simTime  = 0;
+  lastTs   = null;
+  simRunning = true;
+
+  // Hide annotation
+  document.getElementById('annotation').classList.add('hidden');
+
+  animFrame = requestAnimationFrame(simLoop);
+}
+
+function resetSimulation() {
+  simRunning = false;
+  cancelAnimationFrame(animFrame);
+  boxVel = { x: 0, y: 0 };
+  updateForceDisplay(0, 0);
+  drawStatic();
+}
+
+// -------- Init --------
+document.addEventListener('DOMContentLoaded', () => {
+  simMass = weights[currentWeight].mass;
+  drawStatic();
+});
+</script>
+</body>
+</html>
