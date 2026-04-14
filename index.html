@@ -707,14 +707,14 @@ function drawForceArrows(px, py, angle, normalMag, frictionMag) {
   const ny =  Math.cos(angle) * normalMag * scale;
   drawArrow(px, py, px + nx, py - ny, '#00b894', 'N');
 
-  // Friction (along ramp, opposing motion)
+  // Friction (along ramp, opposing motion = up the ramp = +cos, -sin in screen coords)
   const fx =  Math.cos(angle) * frictionMag * scale;
   const fy =  Math.sin(angle) * frictionMag * scale;
-  drawArrow(px, py, px + fx, py + fy, '#e17055', 'F тр');
+  drawArrow(px, py, px + fx, py - fy, '#e17055', 'F тр');
 
-  // Gravity component along ramp
+  // Gravity component along ramp (down the ramp = -cos, +sin in screen coords)
   const gComp = simMass * 9.8 * Math.sin(angle) * scale;
-  drawArrow(px, py, px - Math.cos(angle) * gComp, py - Math.sin(angle) * gComp, '#fdcb6e', 'G║');
+  drawArrow(px, py, px - Math.cos(angle) * gComp, py + Math.sin(angle) * gComp, '#fdcb6e', 'G║');
 }
 
 function drawArrow(x1, y1, x2, y2, color, label) {
@@ -808,8 +808,8 @@ function simLoop(ts) {
   const normalF  = mass * g * Math.cos(angle);
   const gravAlongRamp = mass * g * Math.sin(angle);
 
-  // Speed along ramp
-  const vAlong = boxVel.x * Math.cos(angle) + boxVel.y * Math.sin(angle);
+  // Speed along ramp — project onto down-ramp direction (-cos, +sin)
+  const vAlong = -boxVel.x * Math.cos(angle) + boxVel.y * Math.sin(angle);
 
   // Static or kinetic
   let frictionF = 0;
@@ -828,9 +828,9 @@ function simLoop(ts) {
   // Net force along ramp (positive = down the ramp)
   const netAlong = gravAlongRamp - frictionF;
 
-  // Acceleration
-  const ax = netAlong * Math.cos(angle) / mass;
-  const ay = netAlong * Math.sin(angle) / mass;
+  // Acceleration — down-ramp direction in screen coords is (-cos, +sin)
+  const ax = -netAlong * Math.cos(angle) / mass;
+  const ay =  netAlong * Math.sin(angle) / mass;
 
   boxVel.x += ax * dt;
   boxVel.y += ay * dt;
